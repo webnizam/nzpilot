@@ -116,6 +116,7 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     keepHandsOnWheel @115;
     speedLimitActive @116;
     speedLimitValueChange @117;
+    standStill @118;
 
     driverMonitorLowAccDEPRECATED @68;
     radarCanErrorDEPRECATED @15;
@@ -207,6 +208,10 @@ struct CarState {
   automaticLaneChange @45 :Bool;
   belowLaneChangeSpeed @46 :Bool;
   accEnabled @47 :Bool;
+  engineRPM @48 :Float32;
+  standStill @49 :Bool;
+  cruiseButtons @50 :UInt32;
+  radarObjValid @51 :Bool;
 
   # which packets this state came from
   canMonoTimes @12: List(UInt64);
@@ -268,7 +273,7 @@ struct CarState {
   }
 
   errorsDEPRECATED @0 :List(CarEvent.EventName);
-  brakeLightsDEPRECATED @19 :Bool;
+  brakeLights @19 :Bool;
 }
 
 # ******* radar state @ 20hz *******
@@ -405,6 +410,8 @@ struct CarParams {
   enableApgs @6 :Bool;       # advanced parking guidance system
   enableBsm @56 :Bool;       # blind spot monitoring
   flags @64 :UInt32;         # flags for car specific quirks
+  standStill @65: Bool;
+  pcmCruiseSpeed @66 :Bool;  # is openpilot's state tied to the PCM's cruise speed?
 
   minEnableSpeed @7 :Float32;
   minSteerSpeed @8 :Float32;

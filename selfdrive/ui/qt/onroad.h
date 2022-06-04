@@ -35,6 +35,9 @@ class OnroadHud : public QWidget {
   Q_PROPERTY(bool dmActive MEMBER dmActive NOTIFY valueChanged);
   Q_PROPERTY(bool hideDM MEMBER hideDM NOTIFY valueChanged);
   Q_PROPERTY(int status MEMBER status NOTIFY valueChanged);
+  Q_PROPERTY(bool is_brakelight_on MEMBER is_brakelight_on NOTIFY valueChanged);
+  Q_PROPERTY(bool madsEnabled MEMBER madsEnabled NOTIFY valueChanged);
+  Q_PROPERTY(bool suspended MEMBER suspended NOTIFY valueChanged);
 
   Q_PROPERTY(bool showHowAlert MEMBER showHowAlert NOTIFY valueChanged);
   Q_PROPERTY(bool howWarning MEMBER howWarning NOTIFY valueChanged);
@@ -59,6 +62,24 @@ Q_PROPERTY(QString roadName MEMBER roadName NOTIFY valueChanged);
   Q_PROPERTY(bool tscActive MEMBER tscActive NOTIFY valueChanged);
   Q_PROPERTY(int curveSign MEMBER curveSign NOTIFY valueChanged);
 
+  Q_PROPERTY(int lead_status MEMBER lead_status NOTIFY valueChanged);
+  Q_PROPERTY(float lead_d_rel MEMBER lead_d_rel NOTIFY valueChanged);
+  Q_PROPERTY(float lead_v_rel MEMBER lead_v_rel NOTIFY valueChanged);
+  Q_PROPERTY(float angleSteers MEMBER angleSteers NOTIFY valueChanged);
+  Q_PROPERTY(float steerAngleDesired MEMBER steerAngleDesired NOTIFY valueChanged);
+  Q_PROPERTY(int distanceTraveled MEMBER distanceTraveled NOTIFY valueChanged);
+  Q_PROPERTY(int devUiEnabled MEMBER devUiEnabled NOTIFY valueChanged);
+  Q_PROPERTY(float gpsAccuracy MEMBER gpsAccuracy NOTIFY valueChanged);
+  Q_PROPERTY(float altitude MEMBER altitude NOTIFY valueChanged);
+  Q_PROPERTY(float vEgo MEMBER vEgo NOTIFY valueChanged);
+  Q_PROPERTY(float aEgo MEMBER aEgo NOTIFY valueChanged);
+  Q_PROPERTY(float steeringTorqueEps MEMBER steeringTorqueEps NOTIFY valueChanged);
+  Q_PROPERTY(float bearingAccuracyDeg MEMBER bearingAccuracyDeg NOTIFY valueChanged);
+  Q_PROPERTY(float bearingDeg MEMBER bearingDeg NOTIFY valueChanged);
+
+  Q_PROPERTY(bool standStill MEMBER standStill NOTIFY valueChanged);
+  Q_PROPERTY(int standstillElapsedTime MEMBER standstillElapsedTime NOTIFY valueChanged);
+
 public:
   explicit OnroadHud(QWidget *parent);
   void updateState(const UIState &s);
@@ -66,6 +87,7 @@ public:
 private:
   void drawIcon(QPainter &p, int x, int y, QPixmap &img, QBrush bg, float opacity);
   void drawText(QPainter &p, int x, int y, const QString &text, int alpha = 255);
+  void drawSpeedText(QPainter &p, int x, int y, const QString &text, QColor color);
   void drawCenteredText(QPainter &p, int x, int y, const QString &text, QColor color);
   void drawVisionTurnControllerUI(QPainter &p, int x, int y, int size, const QColor &color, const QString &speed,
                                   int alpha);
@@ -74,6 +96,15 @@ private:
                      bool is_map_sourced, bool is_active);
   void drawTrunSpeedSign(QPainter &p, QRect rc, const QString &speed, const QString &sub_text, int curv_sign,
                          bool is_active);
+  void drawMadsIcon(QPainter &p, int x, int y, QPixmap &img, QBrush bg, float opacity);
+  void drawStandstillTimerText(QPainter &p, int x, int y, const char* label, const char* value, QColor &color1, QColor &color2);
+  void drawRightDevUi(QPainter &p, int x, int y);
+  void drawRightDevUi2(QPainter &p, int x, int y);
+  void drawRightDevUiBorder(QPainter &p, int x, int y);
+  void drawStandstillTimer(QPainter &p, int x, int y);
+  int drawDevUiElementRight(QPainter &p, int x, int y, const char* value, const char* label, const char* units, QColor &color);
+  int drawDevUiElementLeft(QPainter &p, int x, int y, const char* value, const char* label, const char* units, QColor &color);
+  void drawColoredText(QPainter &p, int x, int y, const QString &text, QColor &color);
   void paintEvent(QPaintEvent *event) override;
 
   QPixmap engage_img;
@@ -82,6 +113,7 @@ private:
   QPixmap map_img;
   QPixmap left_img;
   QPixmap right_img;
+  QPixmap mads_imgs[2];
   const int radius = 192;
   const int img_size = (radius / 2) * 1.5;
   const int subsign_img_size = 35;
@@ -93,6 +125,9 @@ private:
   bool dmActive = false;
   bool hideDM = false;
   int status = STATUS_DISENGAGED;
+  bool is_brakelight_on = false;
+  bool madsEnabled = false;
+  bool suspended = false;
 
   bool showHowAlert = false;
   bool howWarning = false;
@@ -116,6 +151,24 @@ private:
   QString tscSubText;
   bool tscActive = false;
   int curveSign = 0;
+
+  int lead_status;
+  float lead_d_rel = 0;
+  float lead_v_rel = 0;
+  float angleSteers = 0;
+  float steerAngleDesired = 0;
+  int distanceTraveled = 0;
+  int devUiEnabled;
+  float gpsAccuracy;
+  float altitude;
+  float vEgo;
+  float aEgo;
+  float steeringTorqueEps;
+  float bearingAccuracyDeg;
+  float bearingDeg;
+
+  bool standStill;
+  int standstillElapsedTime;
 
 signals:
   void valueChanged();

@@ -14,7 +14,7 @@ from selfdrive.swaglog import cloudlog
 from selfdrive.boardd.boardd import can_list_to_can_capnp
 from selfdrive.car.car_helpers import get_car, get_startup_event, get_one_can
 from selfdrive.controls.lib.lane_planner import CAMERA_OFFSET
-from selfdrive.controls.lib.drive_helpers import update_v_cruise, initialize_v_cruise
+from selfdrive.controls.lib.drive_helpers import update_v_cruise, initialize_v_cruise, update_v_cruise_speed
 from selfdrive.controls.lib.drive_helpers import get_lag_adjusted_curvature
 from selfdrive.controls.lib.longcontrol import LongControl
 from selfdrive.controls.lib.latcontrol_pid import LatControlPID
@@ -288,12 +288,13 @@ class Controls:
     elif not self.sm.valid["pandaStates"]:
       self.events.add(EventName.usbError)
     elif not self.sm.all_alive_and_valid():
-      self.events.add(EventName.commIssue)
-      if not self.logged_comm_issue:
-        invalid = [s for s, valid in self.sm.valid.items() if not valid]
-        not_alive = [s for s, alive in self.sm.alive.items() if not alive]
-        cloudlog.event("commIssue", invalid=invalid, not_alive=not_alive)
-        self.logged_comm_issue = True
+      if TICI:
+        self.events.add(EventName.commIssue)
+        if not self.logged_comm_issue:
+          invalid = [s for s, valid in self.sm.valid.items() if not valid]
+          not_alive = [s for s, alive in self.sm.alive.items() if not alive]
+          cloudlog.event("commIssue", invalid=invalid, not_alive=not_alive)
+          self.logged_comm_issue = True
     else:
       self.logged_comm_issue = False
 
@@ -353,7 +354,8 @@ class Controls:
           # Not show in first 1 km to allow for driving out of garage. This event shows after 5 minutes
           self.events.add(EventName.noGps)
       if not self.sm.all_alive(self.camera_packets):
-        self.events.add(EventName.cameraMalfunction)
+        if TICI:
+          self.events.add(EventName.cameraMalfunction)
       if self.sm['modelV2'].frameDropPerc > 20:
         self.events.add(EventName.modeldLagging)
       if self.sm['liveLocationKalman'].excessiveResets:
@@ -422,33 +424,59 @@ class Controls:
     cur_time = self.sm.frame * DT_CTRL
 
     # if stock cruise is completely disabled, then we can use our own set speed logic
-    if not self.CP.pcmCruise:
-      for b in CS.buttonEvents:
-        if b.pressed:
-          if b.type == car.CarState.ButtonEvent.Type.accelCruise:
-            self.accel_pressed = True
+    if CS.cruiseState.enabled:
+      if not self.CP.pcmCruise:
+        for b in CS.buttonEvents:
+          if b.pressed:
+            if b.type == car.CarState.ButtonEvent.Type.accelCruise:
+              self.accel_pressed = True
+              self.accel_pressed_last = cur_time
+            elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
+              self.decel_pressed = True
+              self.decel_pressed_last = cur_time
+          else:
+            if b.type == car.CarState.ButtonEvent.Type.accelCruise:
+              self.accel_pressed = False
+            elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
+              self.decel_pressed = False
+
+        self.v_cruise_kph = update_v_cruise(self.v_cruise_kph if self.is_metric else int(round((float(self.v_cruise_kph) * 0.6233 + 0.0995))), CS.buttonEvents, self.enabled and CS.cruiseState.enabled, cur_time, self.accel_pressed,self.decel_pressed, self.accel_pressed_last,self.decel_pressed_last,self.fastMode)
+        self.v_cruise_kph = self.v_cruise_kph if self.is_metric else int(round((float(round(self.v_cruise_kph))-0.0995)/0.6233))
+
+        if self.accel_pressed or self.decel_pressed:
+          if self.v_cruise_kph_last != self.v_cruise_kph:
             self.accel_pressed_last = cur_time
-          elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
-            self.decel_pressed = True
             self.decel_pressed_last = cur_time
+            self.fastMode = True
         else:
-          if b.type == car.CarState.ButtonEvent.Type.accelCruise:
-            self.accel_pressed = False
-          elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
-            self.decel_pressed = False
+          self.fastMode = False
+      elif self.CP.pcmCruise and not self.CP.pcmCruiseSpeed:
+        for b in CS.buttonEvents:
+          if b.pressed:
+            if b.type == car.CarState.ButtonEvent.Type.accelCruise:
+              self.accel_pressed = True
+              self.accel_pressed_last = cur_time
+            elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
+              self.decel_pressed = True
+              self.decel_pressed_last = cur_time
+          else:
+            if b.type == car.CarState.ButtonEvent.Type.accelCruise:
+              self.accel_pressed = False
+            elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
+              self.decel_pressed = False
 
-      self.v_cruise_kph = update_v_cruise(self.v_cruise_kph if self.is_metric else int(round((float(self.v_cruise_kph) * 0.6233 + 0.0995))), CS.buttonEvents, self.enabled and CS.cruiseState.enabled, cur_time, self.accel_pressed,self.decel_pressed, self.accel_pressed_last,self.decel_pressed_last,self.fastMode)
-      self.v_cruise_kph = self.v_cruise_kph if self.is_metric else int(round((float(round(self.v_cruise_kph))-0.0995)/0.6233))
+        self.v_cruise_kph = update_v_cruise_speed(self.v_cruise_kph if self.is_metric else int(round((float(self.v_cruise_kph) * 0.6233 + 0.0995))), CS.buttonEvents, self.enabled and CS.cruiseState.enabled, cur_time, self.accel_pressed,self.decel_pressed, self.accel_pressed_last,self.decel_pressed_last,self.fastMode)
+        self.v_cruise_kph = self.v_cruise_kph if self.is_metric else int(round((float(round(self.v_cruise_kph))-0.0995)/0.6233))
 
-      if self.accel_pressed or self.decel_pressed:
-        if self.v_cruise_kph_last != self.v_cruise_kph:
-          self.accel_pressed_last = cur_time
-          self.decel_pressed_last = cur_time
-          self.fastMode = True
-      else:
-        self.fastMode = False
-    elif self.CP.pcmCruise and CS.cruiseState.enabled:
-      self.v_cruise_kph = CS.cruiseState.speed * CV.MS_TO_KPH
+        if self.accel_pressed or self.decel_pressed:
+          if self.v_cruise_kph_last != self.v_cruise_kph:
+            self.accel_pressed_last = cur_time
+            self.decel_pressed_last = cur_time
+            self.fastMode = True
+        else:
+          self.fastMode = False
+      elif self.CP.pcmCruise:
+        self.v_cruise_kph = CS.cruiseState.speed * CV.MS_TO_KPH
 
     # decrement the soft disable timer at every step, as it's reset on
     # entrance in SOFT_DISABLING state
@@ -470,6 +498,10 @@ class Controls:
       else:
         # ENABLED
         if self.state == State.enabled:
+          if not self.CP.pcmCruise and CS.cruiseState.enabled and (not self.cruiseState_enabled_last):
+            self.v_cruise_kph = initialize_v_cruise(CS.vEgo, CS.buttonEvents, self.v_cruise_kph_last)
+          elif (self.CP.pcmCruise and not self.CP.pcmCruiseSpeed) and CS.cruiseState.enabled and (not self.cruiseState_enabled_last):
+            self.v_cruise_kph = initialize_v_cruise(CS.vEgo, CS.buttonEvents, self.v_cruise_kph_last)
           if self.events.any(ET.SOFT_DISABLE):
             self.state = State.softDisabling
             self.soft_disable_timer = int(SOFT_DISABLE_TIME / DT_CTRL)
@@ -506,17 +538,12 @@ class Controls:
           else:
             self.state = State.enabled
           self.current_alert_types.append(ET.ENABLE)
-          if not self.CP.pcmCruise:
-            if CS.cruiseState.enabled:
-              self.v_cruise_kph = initialize_v_cruise(CS.vEgo, CS.buttonEvents, self.v_cruise_kph_last)
-          else:
+          if not self.CP.pcmCruise and CS.cruiseState.enabled:
+            self.v_cruise_kph = initialize_v_cruise(CS.vEgo, CS.buttonEvents, self.v_cruise_kph_last)
+          elif (self.CP.pcmCruise and not self.CP.pcmCruiseSpeed) and CS.cruiseState.enabled:
             self.v_cruise_kph = initialize_v_cruise(CS.vEgo, CS.buttonEvents, self.v_cruise_kph_last)
 
-    if not self.CP.pcmCruise:
-      if CS.cruiseState.enabled and not self.cruiseState_enabled_last:
-        self.v_cruise_kph = initialize_v_cruise(CS.vEgo, CS.buttonEvents, self.v_cruise_kph_last)
-
-      self.cruiseState_enabled_last = CS.cruiseState.enabled
+    self.cruiseState_enabled_last = CS.cruiseState.enabled
 
     # Check if actuators are enabled
     self.active = self.state == State.enabled or self.state == State.softDisabling
@@ -684,8 +711,8 @@ class Controls:
 
     # Curvature & Steering angle
     params = self.sm['liveParameters']
-    steer_angle_without_offset = math.radians(CS.steeringAngleDeg - params.angleOffsetAverageDeg)
-    curvature = -self.VM.calc_curvature(steer_angle_without_offset, CS.vEgo)
+    steer_angle_without_offset = math.radians(CS.steeringAngleDeg - params.angleOffsetDeg)
+    curvature = -self.VM.calc_curvature(steer_angle_without_offset, CS.vEgo, params.roll)
 
     # controlsState
     dat = messaging.new_message('controlsState')
@@ -723,6 +750,7 @@ class Controls:
                                (self.active and (not CS.steerWarning) and (not CS.steerError) and
                                (CS.vEgo > self.CP.minSteerSpeed) and (CS.lfaEnabled or CS.accMainEnabled or CS.lkasEnabled) and
                                ((not CS.belowLaneChangeSpeed) or ((not (((self.sm.frame - self.last_blinker_frame) * DT_CTRL) < 1.0))))))
+    controlsState.distanceTraveled = self.distance_traveled
 
     if self.joystick_mode:
       controlsState.lateralControlState.debugState = lac_log

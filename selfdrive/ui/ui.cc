@@ -237,6 +237,8 @@ static void update_status(UIState *s) {
       s->scene.speed_limit_control_enabled = Params().getBool("SpeedLimitControl");
       s->scene.speed_limit_perc_offset = Params().getBool("SpeedLimitPercOffset");
       s->scene.debug_snapshot_enabled = Params().getBool("EnableDebugSnapshot");
+      s->scene.dev_ui_enabled = std::stoi(Params().get("DevUI"));
+      s->scene.speed_limit_value_offset = std::stoi(Params().get("SpeedLimitValueOffset"));
     }
     // Invisible until we receive a calibration message.
     s->scene.world_objects_visible = false;
@@ -249,7 +251,7 @@ QUIState::QUIState(QObject *parent) : QObject(parent) {
   ui_state.sm = std::make_unique<SubMaster, const std::initializer_list<const char *>>({
     "modelV2", "controlsState", "liveCalibration", "radarState", "deviceState", "roadCameraState",
     "pandaStates", "carParams", "driverMonitoringState", "sensorEvents", "carState", "liveLocationKalman",
-    "lateralPlan", "longitudinalPlan", "liveMapData",
+    "lateralPlan", "longitudinalPlan", "liveMapData", "gpsLocationExternal",
   });
 
   Params params;

@@ -19,6 +19,7 @@ const int header_h = 420;
 const int footer_h = 280;
 
 const QRect speed_sgn_rc(bdr_s * 2, bdr_s * 2.5 + 202, 184, 184);
+const QRect max_speed_rc(bdr_s * 2, bdr_s * 1.5, 184, 202);
 
 const int UI_FREQ = 20;   // Hz
 typedef cereal::CarControl::HUDControl::AudibleAlert AudibleAlert;
@@ -106,6 +107,7 @@ typedef struct UIScene {
   // Speed limit control
   bool speed_limit_control_enabled;
   bool speed_limit_perc_offset;
+  int speed_limit_value_offset;
 
   double last_speed_limit_sign_tap;
   cereal::PandaState::PandaType pandaType;
@@ -138,6 +140,8 @@ typedef struct UIScene {
   {
     bool dynamicLaneProfileStatus;
   } lateralPlan;
+
+  int dev_ui_enabled;
 } UIScene;
 
 typedef struct UIState {

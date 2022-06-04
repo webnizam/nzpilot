@@ -4,6 +4,7 @@ from common.numpy_fast import clip, interp
 from common.realtime import DT_MDL
 from selfdrive.config import Conversions as CV
 from selfdrive.modeld.constants import T_IDXS
+from common.params import Params
 
 # WARNING: this value was determined based on the model's training distribution,
 #          model predictions above this speed can be unpredictable
@@ -61,23 +62,82 @@ def get_steer_max(CP, v_ego):
 
 
 def update_v_cruise(v_cruise_kph, buttonEvents, enabled, cur_time, accel_pressed,decel_pressed,accel_pressed_last,decel_pressed_last, fastMode):
+  reverse_acc_change = Params().get_bool("ReverseAccChange")
 
   if enabled:
-    if accel_pressed:
-      if ((cur_time-accel_pressed_last) >= 1 or (fastMode and (cur_time-accel_pressed_last) >= 0.5)):
-        v_cruise_kph += V_CRUISE_DELTA - (v_cruise_kph % V_CRUISE_DELTA)
-    elif decel_pressed:
-      if ((cur_time-decel_pressed_last) >= 1 or (fastMode and (cur_time-decel_pressed_last) >= 0.5)):
-        v_cruise_kph -= V_CRUISE_DELTA - ((V_CRUISE_DELTA - v_cruise_kph) % V_CRUISE_DELTA)
+    if reverse_acc_change:
+      if accel_pressed:
+        if ((cur_time-accel_pressed_last) >= 1 or (fastMode and (cur_time-accel_pressed_last) >= 0.5)):
+          v_cruise_kph += 1
+      elif decel_pressed:
+        if ((cur_time-decel_pressed_last) >= 1 or (fastMode and (cur_time-decel_pressed_last) >= 0.5)):
+          v_cruise_kph -= 1
+      else:
+        for b in buttonEvents:
+          if not b.pressed:
+            if b.type == car.CarState.ButtonEvent.Type.accelCruise:
+              if (not fastMode):
+                v_cruise_kph += V_CRUISE_DELTA - (v_cruise_kph % V_CRUISE_DELTA)
+            elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
+              if (not fastMode):
+                v_cruise_kph -= V_CRUISE_DELTA - ((V_CRUISE_DELTA - v_cruise_kph) % V_CRUISE_DELTA)
     else:
-      for b in buttonEvents:
-        if not b.pressed:
-          if b.type == car.CarState.ButtonEvent.Type.accelCruise:
-            if (not fastMode):
-              v_cruise_kph += 1
-          elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
-            if (not fastMode):
-              v_cruise_kph -= 1
+      if accel_pressed:
+        if ((cur_time-accel_pressed_last) >= 1 or (fastMode and (cur_time-accel_pressed_last) >= 0.5)):
+          v_cruise_kph += V_CRUISE_DELTA - (v_cruise_kph % V_CRUISE_DELTA)
+      elif decel_pressed:
+        if ((cur_time-decel_pressed_last) >= 1 or (fastMode and (cur_time-decel_pressed_last) >= 0.5)):
+          v_cruise_kph -= V_CRUISE_DELTA - ((V_CRUISE_DELTA - v_cruise_kph) % V_CRUISE_DELTA)
+      else:
+        for b in buttonEvents:
+          if not b.pressed:
+            if b.type == car.CarState.ButtonEvent.Type.accelCruise:
+              if (not fastMode):
+                v_cruise_kph += 1
+            elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
+              if (not fastMode):
+                v_cruise_kph -= 1
+    v_cruise_kph = clip(v_cruise_kph, V_CRUISE_MIN, V_CRUISE_MAX)
+
+  return v_cruise_kph
+
+
+def update_v_cruise_speed(v_cruise_kph, buttonEvents, enabled, cur_time, accel_pressed,decel_pressed,accel_pressed_last,decel_pressed_last, fastMode):
+  reverse_acc_change = Params().get_bool("ReverseAccChange")
+
+  if enabled:
+    if reverse_acc_change:
+      if accel_pressed:
+        if ((cur_time-accel_pressed_last) >= 1 or (fastMode and (cur_time-accel_pressed_last) >= 0.5)):
+          v_cruise_kph += 1
+      elif decel_pressed:
+        if ((cur_time-decel_pressed_last) >= 1 or (fastMode and (cur_time-decel_pressed_last) >= 0.5)):
+          v_cruise_kph -= 1
+      else:
+        for b in buttonEvents:
+          if not b.pressed:
+            if b.type == car.CarState.ButtonEvent.Type.accelCruise:
+              if (not fastMode):
+                v_cruise_kph += V_CRUISE_DELTA - (v_cruise_kph % V_CRUISE_DELTA)
+            elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
+              if (not fastMode):
+                v_cruise_kph -= V_CRUISE_DELTA - ((V_CRUISE_DELTA - v_cruise_kph) % V_CRUISE_DELTA)
+    else:
+      if accel_pressed:
+        if ((cur_time-accel_pressed_last) >= 1 or (fastMode and (cur_time-accel_pressed_last) >= 0.5)):
+          v_cruise_kph += V_CRUISE_DELTA - (v_cruise_kph % V_CRUISE_DELTA)
+      elif decel_pressed:
+        if ((cur_time-decel_pressed_last) >= 1 or (fastMode and (cur_time-decel_pressed_last) >= 0.5)):
+          v_cruise_kph -= V_CRUISE_DELTA - ((V_CRUISE_DELTA - v_cruise_kph) % V_CRUISE_DELTA)
+      else:
+        for b in buttonEvents:
+          if not b.pressed:
+            if b.type == car.CarState.ButtonEvent.Type.accelCruise:
+              if (not fastMode):
+                v_cruise_kph += 1
+            elif b.type == car.CarState.ButtonEvent.Type.decelCruise:
+              if (not fastMode):
+                v_cruise_kph -= 1
     v_cruise_kph = clip(v_cruise_kph, V_CRUISE_MIN, V_CRUISE_MAX)
 
   return v_cruise_kph
