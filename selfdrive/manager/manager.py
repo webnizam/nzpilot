@@ -155,6 +155,7 @@ def manager_thread():
   ignore = []
   if params.get("DongleId", encoding='utf8') == UNREGISTERED_DONGLE_ID:
     ignore += ["manage_athenad", "uploader"]
+    # ignore += ['dmonitoringmodeld', 'dmonitoringd']
   if os.getenv("NOBOARD") is not None:
     ignore.append("pandad")
   if os.getenv("BLOCK") is not None:
