@@ -23,7 +23,7 @@
   },
   "Offroad_InvalidTime": {
     "text": "Invalid date and time settings, system won't start. Connect to internet to set time.",
-    "severity": 1
+    "severity": 0
   },
   "Offroad_IsTakingSnapshot": {
     "text": "Taking camera snapshots. System won't start until finished.",
@@ -35,7 +35,7 @@
   },
   "Offroad_UnofficialHardware": {
     "text": "Device failed to register. It will not connect to or upload to comma.ai servers, and receives no support from comma.ai. If this is an official device, contact support@comma.ai.",
-    "severity": 1
+    "severity": 0
   },
   "Offroad_StorageMissing": {
     "text": "Storage drive not mounted.",
